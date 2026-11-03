@@ -48,7 +48,7 @@ echo "HEADER src=$SRC model=$MODEL modes=\"$MODES\" heavy_timeout=${HEAVY_TIMEOU
 if [ -d "$SRC/.git" ]; then
   echo "HEADER src_sha=$(git -C "$SRC" rev-parse HEAD)"
 fi
-echo "HEADER vllm-mlx $(vllm-mlx --version 2>&1 | head -1)"
+echo "HEADER $("$PY" -m pip show vllm-mlx 2>&1 | grep -E '^(Name|Version):' | tr '\n' ' ')"
 
 # ---------------------------------------------------------------- generator + oracle
 cat > "$OUT/gen.py" <<'PYEOF'
@@ -117,6 +117,7 @@ ROWS = [
     ("chat-repro-ns", "sb", "chat", False, "OVER", 60008, 16),
     ("chat-repro-stream", "s", "chat", True, "OVER", 60008, 16),
     ("chat-maxtok-ns", "sb", "chat", False, "MAXTOK", None, 40000),
+    ("chat-both-ns", "sb", "chat", False, "MAXTOK", C + 1, 40000),
     ("cmpl-small-ns", "sb", "text", False, "SMALL", None, 16),
     ("cmpl-small-stream", "s", "text", True, "SMALL", None, 16),
     ("cmpl-over1-ns", "sb", "text", False, "OVER", C + 1, 1),
@@ -170,7 +171,7 @@ for rid, modes, kind, stream, cls, target, max_tokens in ROWS:
     with open(os.path.join(out, "bodies", rid + ".json"), "w") as f:
         json.dump(body, f)
     rows_out.append((rid, modes, route, "1" if stream else "0", cls, str(oracle_tokens),
-                     str(max_tokens), "H" if target is not None else "S"))
+                     str(max_tokens), "H" if (target is not None and cls != "MAXTOK") else "S"))
 
 with open(os.path.join(out, "rows.tsv"), "w") as f:
     for r in rows_out:
