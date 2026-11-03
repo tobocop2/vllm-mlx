@@ -1,0 +1,50 @@
+name: apple-unit
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Fork ref (branch or sha) under test
+        required: true
+        type: string
+      steps:
+        description: Space-separated substrings of CI step names to run (empty runs all)
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  apple-unit:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - name: Check out the harness (ci/model-test)
+        uses: actions/checkout@v4
+
+      - name: Check out the ref under test into src/
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: src
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install project and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+          pip install -e "./src[dev,vision,harmony]"
+          python -c "import platform; assert platform.machine() == 'arm64'"
+          python -c "import mlx.core as mx; print(f'MLX OK: {mx.default_device()}')"
+          python -m pip show mlx mlx-lm | grep -E "^(Name|Version):"
+
+      - name: Run CI's Apple Silicon pytest steps
+        env:
+          STEPS: ${{ inputs.steps }}
+        run: |
+          set -o pipefail
+          python acceptance/run_apple_steps.py src $STEPS 2>&1 | tee apple-steps.log
+          echo "APPLE_UNIT_RC rc=${PIPESTATUS[0]}"
