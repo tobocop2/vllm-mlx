@@ -1,0 +1,87 @@
+name: model-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Fork ref (branch or sha) under test
+        required: true
+        type: string
+      item:
+        description: Acceptance item, runs acceptance/<item>.sh
+        required: true
+        default: vllm-mlx-864
+        type: string
+
+jobs:
+  model-test:
+    runs-on: macos-15
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [simple, batched]
+    steps:
+      - name: Check out the harness (ci/model-test)
+        uses: actions/checkout@v4
+
+      - name: Check out the ref under test into src/
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: src
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Cache Hugging Face downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-qwen3-0.6b-4bit-v1
+
+      - name: Install project and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "./src[dev,vision,harmony]"
+
+      - name: Verify Apple Silicon
+        run: |
+          python -c "import platform; assert platform.machine() == 'arm64', 'Not ARM64'"
+          python -c "import mlx.core as mx; print(f'MLX OK: {mx.default_device()}')"
+          python -m pip show mlx mlx-lm vllm-mlx | grep -E "^(Name|Version):"
+          sw_vers
+
+      - name: Pre-download the model
+        run: |
+          python -c "from huggingface_hub import snapshot_download; print(snapshot_download('mlx-community/Qwen3-0.6B-4bit'))"
+
+      - name: Run acceptance script
+        env:
+          ITEM: ${{ inputs.item }}
+          MODE: ${{ matrix.mode }}
+          OUT: ${{ github.workspace }}/acceptance-out-${{ matrix.mode }}
+        run: |
+          case "$ITEM" in
+            *[!a-z0-9-]*) echo "bad item name"; exit 2 ;;
+          esac
+          set +e
+          bash "acceptance/$ITEM.sh" "$MODE" src > "run-$MODE.log" 2>&1
+          rc=$?
+          cat "run-$MODE.log"
+          echo "$rc" > "rc-$MODE.txt"
+          echo "SCRIPT_RC mode=$MODE rc=$rc"
+          exit $rc
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.item }}-${{ matrix.mode }}-logs
+          path: |
+            run-${{ matrix.mode }}.log
+            rc-${{ matrix.mode }}.txt
+            acceptance-out-${{ matrix.mode }}
+          if-no-files-found: warn
