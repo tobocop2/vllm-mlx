@@ -52,8 +52,9 @@ echo "HEADER $("$PY" -m pip show vllm-mlx 2>&1 | grep -E '^(Name|Version):' | tr
 
 # ---------------------------------------------------------------- generator + oracle
 cat > "$OUT/gen.py" <<'PYEOF'
-import json, os, sys
+import json, os, signal, sys
 
+signal.alarm(900)
 model = os.environ["MODEL"]
 out = os.environ["OUT"]
 expected_ctx = int(os.environ["EXPECTED_CONTEXT"])
@@ -179,7 +180,7 @@ with open(os.path.join(out, "rows.tsv"), "w") as f:
 print("ORACLE ok context=%d rows=%d" % (ctx, len(rows_out)))
 PYEOF
 
-MODEL="$MODEL" OUT="$OUT" EXPECTED_CONTEXT="$EXPECTED_CONTEXT" timeout 900 "$PY" "$OUT/gen.py" > "$OUT/gen.log" 2>&1
+MODEL="$MODEL" OUT="$OUT" EXPECTED_CONTEXT="$EXPECTED_CONTEXT" "$PY" "$OUT/gen.py" > "$OUT/gen.log" 2>&1
 GEN_RC=$?
 tail -n 3 "$OUT/gen.log" | sed 's/^/HEADER /'
 if [ "$GEN_RC" -ne 0 ]; then
