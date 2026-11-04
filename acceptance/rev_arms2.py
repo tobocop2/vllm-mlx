@@ -107,9 +107,7 @@ r = sh(cmd + " -p no:cacheprovider -rfE -q --tb=no")
 failed, errs, summ = parse(r.stdout + r.stderr)
 print(f"WIDE-BASELINE rc={r.returncode} failed={len(failed)} errors={len(errs)} summary={summ!r}", flush=True)
 WARMS = [
-    ("wide-engine-limit-direct-attribute", SRVF, 'return getattr(engine, "context_limit", None)', "return engine.context_limit"),
-    ("wide-renderer-direct-attribute", SRVF, 'apply_template = getattr(engine, "_apply_chat_template", None)', "apply_template = engine._apply_chat_template"),
-    ("wide-both-direct", SRVF, 'return getattr(engine, "context_limit", None)', "return engine.context_limit"),
+    ("wide-renderer-direct-attribute", SRVF, 'apply_template = getattr(engine, "_apply_chat_template", None)\n    if limit is None', 'apply_template = engine._apply_chat_template\n    if limit is None'),
 ]
 for name, path, old, new in WARMS:
     after, before, n = mutate(path, old, new)
