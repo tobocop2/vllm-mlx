@@ -43,7 +43,7 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
         run: |
-          case "$MODE" in arms|flake|arms2|arms3) ;; *) echo "bad mode"; exit 2 ;; esac
+          case "$MODE" in arms|flake|arms2|arms3|arms4) ;; *) echo "bad mode"; exit 2 ;; esac
           set -o pipefail
-          if [ "$MODE" = arms2 ]; then python acceptance/rev_arms2.py src 2>&1; elif [ "$MODE" = arms3 ]; then python acceptance/rev_arms3.py arms src 2>&1; else python acceptance/rev_arms.py "$MODE" src 2>&1; fi | tee "rev-$MODE.log"
+          if [ "$MODE" = arms2 ]; then python acceptance/rev_arms2.py src 2>&1; elif [ "$MODE" = arms4 ]; then python acceptance/rev_arms4.py arms src 2>&1; elif [ "$MODE" = arms3 ]; then python acceptance/rev_arms3.py arms src 2>&1; else python acceptance/rev_arms.py "$MODE" src 2>&1; fi | tee "rev-$MODE.log"
           echo "REV_APPLE_DONE mode=$MODE rc=${PIPESTATUS[0]}"
