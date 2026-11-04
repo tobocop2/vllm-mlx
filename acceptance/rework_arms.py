@@ -100,6 +100,34 @@ ARMS = [
     ("tokenizer-bos-must-be-prefix-dropped", TOK, "bos_token is None or not prompt.startswith(bos_token)", "bos_token is None or bos_token not in prompt"),
     ("tokenizer-bos-always-none", TOK, '    bos_token = getattr(tokenizer, "bos_token", None)\n', "    bos_token = None\n"),
 ]
+SIM_CALL = (
+    "        prompt = self._apply_chat_template(\n"
+    "            messages,\n"
+    + CALL_ARGS
+    + "        )\n"
+    "        return count_prompt_tokens(self.tokenizer, prompt)\n"
+)
+SWALLOW = (
+    "        try:\n"
+    "            prompt = self._apply_chat_template(\n"
+    "                messages,\n"
+    "                tools=tools,\n"
+    "                chat_template_kwargs=chat_template_kwargs,\n"
+    "                enable_thinking=enable_thinking,\n"
+    "            )\n"
+    "        except ValueError:\n"
+    "            return None\n"
+    "        return count_prompt_tokens(self.tokenizer, prompt)\n"
+)
+ARMS += [
+    ("boundary-minus-two", SRV, "    if prompt_tokens > limit:\n", "    if prompt_tokens > limit - 2:\n"),
+    ("body-drops-max-model-len", SRV, '                "max_model_len": limit,\n', ""),
+    ("simple-limit-constrained-by-tokenizer", SIM, "        return declared_context_limit(self._model.model)\n", "        return min(declared_context_limit(self._model.model) or 10**9, self.tokenizer.model_max_length)\n"),
+    ("batched-limit-constrained-by-tokenizer", BAT, "        return declared_context_limit(self._model)\n", "        return min(declared_context_limit(self._model) or 10**9, self.tokenizer.model_max_length)\n"),
+    ("batched-limit-reads-args-directly", BAT, "        return declared_context_limit(self._model)\n", "        return declared_context_limit(self._model.args)\n"),
+    ("simple-count-swallows-template-error", SIM, SIM_CALL, SWALLOW),
+    ("batched-count-swallows-template-error", BAT, SIM_CALL, SWALLOW),
+]
 ARMS += engine_arms("simple", SIM, SIM_CTX, SIM_CTX.replace("self._is_mllm or ", ""), SIM_CNT, SIM_CNT.replace("self._is_mllm or ", ""))
 ARMS += engine_arms("batched", BAT, BAT_CTX, "        return declared_context_limit(self._model)\n", BAT_CNT, BAT_CNT.replace("self._is_mllm or ", ""))
 # unloaded guards: drop only the loaded half of each guard
