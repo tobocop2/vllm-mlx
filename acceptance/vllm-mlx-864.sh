@@ -13,7 +13,8 @@
 #      OUT (default acceptance-out), BASE_FILE (result of the base run, used by
 #      KEEP rows), HEAVY_TIMEOUT (default 100 s), SMALL_TIMEOUT (default 60 s),
 #      OVER_DEADLINE (default 10 s: the longest an OVER row may take),
-#      CFG_TIMEOUT (default 300 s: a CFG200 row sends a 20000-token prompt).
+#      CFG_TIMEOUT (default 300 s: a CFG200 row sends a 20000-token prompt),
+#      ONLY (extended regex on row ids: run only the matching rows).
 #
 # The oracle is not the code under test: the context length is read from the
 # model's config.json (huggingface_hub) and the prompt length is counted with the
@@ -35,6 +36,7 @@ HEAVY_TIMEOUT="${HEAVY_TIMEOUT:-100}"
 SMALL_TIMEOUT="${SMALL_TIMEOUT:-60}"
 OVER_DEADLINE="${OVER_DEADLINE:-10}"
 CFG_TIMEOUT="${CFG_TIMEOUT:-300}"
+ONLY="${ONLY:-}"
 START_DEADLINE="${START_DEADLINE:-420}"
 EXPECTED_CONTEXT=40960
 DS_EXPECTED_CONTEXT=131072
@@ -335,6 +337,7 @@ for mode in $MODES; do
   flag="s"; [ "$mode" = "batched" ] && flag="b"
   while IFS="$(printf '\t')" read -r id modes route stream cls otok mtok size rmodel rlimit <&3; do
     case "$modes" in *"$flag"*) ;; *) continue ;; esac
+    if [ -n "$ONLY" ] && ! echo "$id" | grep -Eq "$ONLY"; then continue; fi
     ROWS_EXPECTED=$((ROWS_EXPECTED+1))
     slog="$OUT/logs/server-$mode-$id.log"
     start_server "$mode" "$slog" "$rmodel"

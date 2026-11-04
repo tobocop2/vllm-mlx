@@ -12,6 +12,11 @@ on:
         required: true
         default: vllm-mlx-864
         type: string
+      only:
+        description: Optional regex on row ids, run only the matching rows
+        required: false
+        default: ""
+        type: string
 
 jobs:
   model-test:
@@ -63,6 +68,7 @@ jobs:
         env:
           ITEM: ${{ inputs.item }}
           MODE: ${{ matrix.mode }}
+          ONLY: ${{ inputs.only }}
           OUT: ${{ github.workspace }}/acceptance-out-${{ matrix.mode }}
         run: |
           case "$ITEM" in
