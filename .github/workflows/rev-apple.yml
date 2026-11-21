@@ -14,7 +14,7 @@ on:
 
 jobs:
   rev-apple:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 120
     steps:
       - name: Check out the harness (ci/model-test)
